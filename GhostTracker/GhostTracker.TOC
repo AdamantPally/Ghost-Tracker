@@ -1,5 +1,0 @@
-## Interface: 11200
-## Title: Ghost Tracker
-## Notes: Tracks your summoned ghosts.
-## SavedVariablesPerCharacter: GT_Settings
-GhostTracker.lua
