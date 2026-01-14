@@ -1,6 +1,9 @@
 # Ghost-Tracker
 Ghost Tracker is a specialized combat utility for Turtle WoW, specifically built to track procs that summon "The Lost". It serves as a tool for testing build efficiency and internal cooldowns (currently there's no ICD).
 
+I generated this for my own needs using exclusively Gemini AI since i have very little experience coding.
+This currently serves it's purpose but might update it with more features (currently thinking about a total ghosts spawned counter and an average ghosts spawned per minute)
+
 
 Key Features:
 
