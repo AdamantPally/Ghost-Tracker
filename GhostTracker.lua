@@ -34,7 +34,7 @@ f.drag:SetScript("OnDragStop", function() f:StopMovingOrSizing() end)
 
 -- 2. Configuration Panel
 local config = CreateFrame("Frame", "GT_Config", UIParent)
-config:SetWidth(180) config:SetHeight(120)
+config:SetWidth(180) config:SetHeight(150)
 config:SetPoint("CENTER", 0, 150)
 config:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", 
@@ -42,6 +42,7 @@ config:SetBackdrop({
     tile = true, tileSize = 16, edgeSize = 16, 
     insets = { left = 4, right = 4, top = 4, bottom = 4 }
 })
+config:SetBackdropColor(0, 0, 0, 0.8)
 config:EnableMouse(true) config:SetMovable(true)
 config:RegisterForDrag("LeftButton")
 config:SetScript("OnDragStart", function() this:StartMoving() end)
@@ -91,7 +92,7 @@ end
 mm:SetScript("OnClick", ToggleConfig)
 
 local function UpdateScale(delta)
-    if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0} end
+    if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0, showBars=true} end
     GT_Settings.scale = GT_Settings.scale + delta
     if GT_Settings.scale < 0.5 then GT_Settings.scale = 0.5 end
     if GT_Settings.scale > 2.5 then GT_Settings.scale = 2.5 end
@@ -111,6 +112,14 @@ btnMinus:SetPoint("RIGHT", scaleText, "LEFT", -10, 0)
 btnMinus:SetText("-")
 btnMinus:SetScript("OnClick", function() UpdateScale(-0.1) end)
 
+local btnBars = CreateFrame("Button", nil, config, "UIPanelButtonTemplate")
+btnBars:SetWidth(100) btnBars:SetHeight(20)
+btnBars:SetPoint("CENTER", 0, -15)
+btnBars:SetScript("OnClick", function()
+    GT_Settings.showBars = not GT_Settings.showBars
+    btnBars:SetText(GT_Settings.showBars and "Hide Bars" or "Show Bars")
+end)
+
 local btnLock = CreateFrame("Button", nil, config, "UIPanelButtonTemplate")
 btnLock:SetWidth(100) btnLock:SetHeight(25)
 btnLock:SetPoint("BOTTOM", 0, 15)
@@ -129,10 +138,19 @@ local function CreateNewRow(id)
     local row = CreateFrame("Frame", "GT_Row"..id, f)
     row:SetWidth(120) row:SetHeight(14)
     row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, - (id * 16))
+    
     row.bar = CreateFrame("StatusBar", nil, row)
     row.bar:SetAllPoints(row)
     row.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     row.bar:SetStatusBarColor(0.4, 0.1, 0.9, 0.8)
+    row.bar:SetMinMaxValues(0, DURATION)
+    
+    -- Add background
+    row.bg = row.bar:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints(row.bar)
+    row.bg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    row.bg:SetVertexColor(0.1, 0.1, 0.1, 0.5)
+    
     row.text = row.bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text:SetPoint("CENTER", 0, 0)
     return row
@@ -145,11 +163,12 @@ f:RegisterEvent("CHAT_MSG_COMBAT_FRIENDLY_DEATH")
 
 f:SetScript("OnEvent", function()
     if event == "VARIABLES_LOADED" then
-        if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0} end
+        if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0, showBars=true} end
         f:ClearAllPoints()
         f:SetPoint("CENTER", UIParent, "CENTER", GT_Settings.x, GT_Settings.y)
         f:SetScale(GT_Settings.scale)
         scaleText:SetText(string.format("Scale: %.1f", GT_Settings.scale))
+        btnBars:SetText(GT_Settings.showBars and "Hide Bars" or "Show Bars")
     elseif arg1 and string.find(arg1, "Summon The Lost") then
         table.insert(activeGhosts, {expiry = GetTime() + DURATION})
     elseif (event == "CHAT_MSG_COMBAT_HOSTILE_DEATH" or event == "CHAT_MSG_COMBAT_FRIENDLY_DEATH") then
@@ -171,13 +190,14 @@ f:SetScript("OnUpdate", function()
         end
     end
     for i, row in ipairs(rowPool) do
-        if activeGhosts[i] then
+        if activeGhosts[i] and GT_Settings.showBars then
             local remain = activeGhosts[i].expiry - now
-            row.bar:SetMinMaxValues(0, DURATION)
             row.bar:SetValue(remain)
             row.text:SetText(string.format("%.1fs", remain))
             row:Show()
-        else row:Hide() end
+        else 
+            row:Hide() 
+        end
     end
 end)
 
