@@ -3,7 +3,7 @@ local DURATION = 20
 local ICON_PATH = "Interface\\Icons\\Spell_Shadow_Haunting"
 local WOLF_NAME = "Spirit Protector"
 local WOLF_DURATION = 30
-local WOLF_ICON_PATH = "Interface\\Icons\\Ability_Hunter_AspectOfThePack"
+local WOLF_ICON_PATH = "Interface\\Icons\\Spell_Nature_SpiritWolf"
 
 local LOST_SET_ITEMS = {
     ["Memento of the Lost"] = true,
@@ -33,36 +33,46 @@ end
 
 -- 1. Main Anchor (The HUD)
 local f = CreateFrame("Frame", "GT_Anchor", UIParent)
-f:SetWidth(120) f:SetHeight(40)
+f:SetWidth(30) f:SetHeight(68)
 f:SetPoint("CENTER", 0, 0)
 f:SetMovable(true)
 f:EnableMouse(false)
 f:SetClampedToScreen(true)
 f:SetFrameStrata("HIGH")
 
-f.icon = f:CreateTexture(nil, "ARTWORK")
-f.icon:SetWidth(30) f.icon:SetHeight(30)
-f.icon:SetPoint("CENTER", f, "CENTER", 0, 0)
+-- Ghost icon block
+f.iconFrame = CreateFrame("Frame", nil, f)
+f.iconFrame:SetWidth(30) f.iconFrame:SetHeight(30)
+f.iconFrame:SetPoint("TOP", f, "TOP", 0, 0)
+
+f.icon = f.iconFrame:CreateTexture(nil, "ARTWORK")
+f.icon:SetAllPoints(f.iconFrame)
 f.icon:SetTexture(ICON_PATH)
 
-f.countText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-f.countText:SetPoint("LEFT", f.icon, "RIGHT", 8, 0)
-f.countText:SetText("x0")
+f.countText = f.iconFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+f.countText:SetPoint("CENTER", f.iconFrame, "CENTER", 0, 0)
+f.countText:SetTextColor(1, 1, 1, 1)
+f.countText:SetText("0")
 
-f.wolfIcon = f:CreateTexture(nil, "ARTWORK")
-f.wolfIcon:SetWidth(30) f.wolfIcon:SetHeight(30)
-f.wolfIcon:SetPoint("LEFT", f.countText, "RIGHT", 8, 0)
+-- Wolf icon block
+f.wolfIconFrame = CreateFrame("Frame", nil, f)
+f.wolfIconFrame:SetWidth(30) f.wolfIconFrame:SetHeight(30)
+f.wolfIconFrame:SetPoint("TOP", f.iconFrame, "BOTTOM", 0, -8)
+
+f.wolfIcon = f.wolfIconFrame:CreateTexture(nil, "ARTWORK")
+f.wolfIcon:SetAllPoints(f.wolfIconFrame)
 f.wolfIcon:SetTexture(WOLF_ICON_PATH)
 
-f.wolfCountText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-f.wolfCountText:SetPoint("LEFT", f.wolfIcon, "RIGHT", 8, 0)
-f.wolfCountText:SetText("x0")
+f.wolfCountText = f.wolfIconFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+f.wolfCountText:SetPoint("CENTER", f.wolfIconFrame, "CENTER", 0, 0)
+f.wolfCountText:SetTextColor(1, 1, 1, 1)
+f.wolfCountText:SetText("0")
 
--- Dedicated drag button
+-- Dedicated drag button covering both icons
 f.drag = CreateFrame("Button", nil, f)
-f.drag:SetAllPoints(f.icon)
+f.drag:SetAllPoints(f)
 f.drag:SetFrameLevel(f:GetFrameLevel() + 10)
-f.drag:SetNormalTexture("") 
+f.drag:SetNormalTexture("")
 f.drag:SetHighlightTexture("Interface\\Buttons\\CheckButtonHilight")
 f.drag:Hide()
 
@@ -133,41 +143,46 @@ btnPlus:SetWidth(20) btnPlus:SetHeight(20)
 btnPlus:SetPoint("TOP", checkboxX - 10 - 30, startY + 5)
 btnPlus:SetText("+")
 
--- Option 2: Show Progress Bars
+-- Option 2: Show bars
 local showBarsText = config:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 showBarsText:SetPoint("TOP", 0 - 4, startY - optionSpacing)
-showBarsText:SetText("Show ghost timers:")
+showBarsText:SetText("Show bars:")
 showBarsText:SetTextColor(1, 1, 1, 1)
 
 local showBarsCheck = CreateFrame("CheckButton", nil, config, "UICheckButtonTemplate")
 showBarsCheck:SetWidth(24) showBarsCheck:SetHeight(24)
 showBarsCheck:SetPoint("TOP", checkboxX - 30, startY - optionSpacing + 5)
 
--- Option 3: Hide out of combat
+-- Option 3: Last bar only
+local showWolfBarsText = config:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+showWolfBarsText:SetPoint("TOP", 0 - 4, startY - (optionSpacing * 2))
+showWolfBarsText:SetText("Last bar only:")
+showWolfBarsText:SetTextColor(1, 1, 1, 1)
+
+local showWolfBarsCheck = CreateFrame("CheckButton", nil, config, "UICheckButtonTemplate")
+showWolfBarsCheck:SetWidth(24) showWolfBarsCheck:SetHeight(24)
+showWolfBarsCheck:SetPoint("TOP", checkboxX - 30, startY - (optionSpacing * 2) + 5)
+
+-- Option 4: Hide out of combat
 local combatOnlyText = config:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-combatOnlyText:SetPoint("TOP", 0 - 4, startY - (optionSpacing * 2))
+combatOnlyText:SetPoint("TOP", 0 - 4, startY - (optionSpacing * 3))
 combatOnlyText:SetText("Hide out of combat:")
 combatOnlyText:SetTextColor(1, 1, 1, 1)
 
 local combatOnlyCheck = CreateFrame("CheckButton", nil, config, "UICheckButtonTemplate")
 combatOnlyCheck:SetWidth(24) combatOnlyCheck:SetHeight(24)
-combatOnlyCheck:SetPoint("TOP", checkboxX - 30, startY - (optionSpacing * 2) + 5)
+combatOnlyCheck:SetPoint("TOP", checkboxX - 30, startY - (optionSpacing * 3) + 5)
 
--- Option 4: Save & Lock
--- local lockText = config:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
--- lockText:SetPoint("TOP", 0, startY - (optionSpacing * 3))
--- lockText:SetText("Save & Lock Position")
--- lockText:SetTextColor(1, 1, 1, 1)
-
+-- Option 5: Save & Lock
 local btnLock = CreateFrame("Button", nil, config, "UIPanelButtonTemplate")
 btnLock:SetWidth(60) btnLock:SetHeight(25)
-btnLock:SetPoint("TOP", checkboxX - 80, startY - (optionSpacing * 3) + 10)
+btnLock:SetPoint("TOP", checkboxX - 80, startY - (optionSpacing * 4) + 10)
 btnLock:SetText("Save")
 
 -- Dynamic sizing
 local function UpdateConfigSize()
-    local numOptions = 4
-    local width = 150
+    local numOptions = 5
+    local width = 160
     local height = 40 + (numOptions * optionSpacing)
     config:SetWidth(width)
     config:SetHeight(height)
@@ -230,6 +245,9 @@ showBarsCheck:SetScript("OnClick", function()
     GT_Settings.showBars = this:GetChecked()
 end)
 
+showWolfBarsCheck:SetScript("OnClick", function()
+    GT_Settings.lastOnly = this:GetChecked()
+end)
 
 combatOnlyCheck:SetScript("OnClick", function()
     GT_Settings.showCombatOnly = this:GetChecked()
@@ -270,6 +288,7 @@ local function CreateNewRow(id, duration, r, g, b)
 end
 
 f:RegisterEvent("VARIABLES_LOADED")
+f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_SPELL_SELF_BUFF")
 f:RegisterEvent("CHAT_MSG_COMBAT_HOSTILE_DEATH")
 f:RegisterEvent("CHAT_MSG_COMBAT_FRIENDLY_DEATH")
@@ -280,16 +299,17 @@ f:RegisterEvent("UNIT_INVENTORY_CHANGED")
 
 f:SetScript("OnEvent", function()
     if event == "VARIABLES_LOADED" then
-        if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0, showBars=true, showCombatOnly=false} end
+        if not GT_Settings then GT_Settings = {x=0, y=0, scale=1.0, showBars=true, lastOnly=false, showCombatOnly=false} end
         f:ClearAllPoints()
         f:SetPoint("CENTER", UIParent, "CENTER", GT_Settings.x, GT_Settings.y)
         f:SetScale(GT_Settings.scale)
         scaleValue:SetText(string.format("%.1f", GT_Settings.scale))
         showBarsCheck:SetChecked(GT_Settings.showBars)
+        showWolfBarsCheck:SetChecked(GT_Settings.lastOnly)
         combatOnlyCheck:SetChecked(GT_Settings.showCombatOnly)
         ScanEquipment()
         UpdateFrameVisibility()
-    elseif event == "UNIT_INVENTORY_CHANGED" then
+    elseif event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_LOGIN" then
         ScanEquipment()
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
         UpdateFrameVisibility()
@@ -319,16 +339,16 @@ f:SetScript("OnUpdate", function()
     local wolfCount = table.getn(activeWolves)
 
     if hasGhostSet then
-        f.icon:Show() f.countText:Show()
-        f.countText:SetText("x" .. ghostCount)
+        f.iconFrame:Show()
+        f.countText:SetText(ghostCount)
     else
-        f.icon:Hide() f.countText:Hide()
+        f.iconFrame:Hide()
     end
     if hasWolfItem then
-        f.wolfIcon:Show() f.wolfCountText:Show()
-        f.wolfCountText:SetText("x" .. wolfCount)
+        f.wolfIconFrame:Show()
+        f.wolfCountText:SetText(wolfCount)
     else
-        f.wolfIcon:Hide() f.wolfCountText:Hide()
+        f.wolfIconFrame:Hide()
     end
 
     if ghostCount > table.getn(rowPool) then
@@ -343,25 +363,51 @@ f:SetScript("OnUpdate", function()
         end
     end
 
+    local visibleGhostRows = 0
     for i, row in ipairs(rowPool) do
-        if activeGhosts[i] and GT_Settings.showBars and hasGhostSet then
+        local show = activeGhosts[i] and hasGhostSet and GT_Settings.showBars and
+            (not GT_Settings.lastOnly or i == ghostCount)
+        if show then
             local remain = activeGhosts[i].expiry - now
             row.bar:SetValue(remain)
             row.text:SetText(string.format("%.1fs", remain))
-            row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -(i * 16))
+            row:ClearAllPoints()
+            if GT_Settings.lastOnly then
+                row:SetPoint("LEFT", f.iconFrame, "RIGHT", 4, 0)
+            else
+                visibleGhostRows = visibleGhostRows + 1
+                row:SetPoint("TOPLEFT", f.iconFrame, "BOTTOMLEFT", 0, -(visibleGhostRows * 16))
+            end
             row:Show()
         else
             row:Hide()
         end
     end
 
-    local ghostRows = table.getn(rowPool)
+    if hasWolfItem then
+        f.wolfIconFrame:ClearAllPoints()
+        if GT_Settings.lastOnly then
+            f.wolfIconFrame:SetPoint("TOPLEFT", f.iconFrame, "BOTTOMLEFT", 0, -8)
+        else
+            f.wolfIconFrame:SetPoint("TOPLEFT", f.iconFrame, "BOTTOMLEFT", 0, -(visibleGhostRows * 16) - 24)
+        end
+    end
+
+    local visibleWolfRows = 0
     for i, row in ipairs(wolfRowPool) do
-        if activeWolves[i] and GT_Settings.showBars and hasWolfItem then
+        local show = activeWolves[i] and hasWolfItem and GT_Settings.showBars and
+            (not GT_Settings.lastOnly or i == wolfCount)
+        if show then
             local remain = activeWolves[i].expiry - now
             row.bar:SetValue(remain)
             row.text:SetText(string.format("%.1fs", remain))
-            row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -((ghostRows + i) * 16))
+            row:ClearAllPoints()
+            if GT_Settings.lastOnly then
+                row:SetPoint("LEFT", f.wolfIconFrame, "RIGHT", 4, 0)
+            else
+                visibleWolfRows = visibleWolfRows + 1
+                row:SetPoint("TOPLEFT", f.wolfIconFrame, "BOTTOMLEFT", 0, -(visibleWolfRows * 16))
+            end
             row:Show()
         else
             row:Hide()
