@@ -1,11 +1,39 @@
 local GHOST_NAME = "The Lost"
 local DURATION = 20
 local ICON_PATH = "Interface\\Icons\\Spell_Shadow_Haunting"
+local WOLF_NAME = "Spirit Protector"
+local WOLF_DURATION = 30
+local WOLF_ICON_PATH = "Interface\\Icons\\Ability_Hunter_AspectOfThePack"
+
+local LOST_SET_ITEMS = {
+    ["Memento of the Lost"] = true,
+    ["Remains of the Lost"] = true,
+    ["Loop of the Lost"] = true,
+    ["Tome of the Lost"] = true,
+}
+local WOLF_ITEM = "Girdle of the Faded Primals"
+
+local hasGhostSet = false
+local hasWolfItem = false
+
+local function ScanEquipment()
+    local lostCount = 0
+    hasWolfItem = false
+    for slot = 1, 18 do
+        local link = GetInventoryItemLink("player", slot)
+        if link then
+            local name = string.gsub(link, "|?|c%x+|?|H[^|]+|?|h%[(.-)%]|?|h|?|r", "%1")
+            if LOST_SET_ITEMS[name] then lostCount = lostCount + 1 end
+            if name == WOLF_ITEM then hasWolfItem = true end
+        end
+    end
+    hasGhostSet = lostCount >= 3
+end
 
 
 -- 1. Main Anchor (The HUD)
 local f = CreateFrame("Frame", "GT_Anchor", UIParent)
-f:SetWidth(40) f:SetHeight(40)
+f:SetWidth(120) f:SetHeight(40)
 f:SetPoint("CENTER", 0, 0)
 f:SetMovable(true)
 f:EnableMouse(false)
@@ -19,7 +47,16 @@ f.icon:SetTexture(ICON_PATH)
 
 f.countText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 f.countText:SetPoint("LEFT", f.icon, "RIGHT", 8, 0)
-f.countText:SetText("0")
+f.countText:SetText("x0")
+
+f.wolfIcon = f:CreateTexture(nil, "ARTWORK")
+f.wolfIcon:SetWidth(30) f.wolfIcon:SetHeight(30)
+f.wolfIcon:SetPoint("LEFT", f.countText, "RIGHT", 8, 0)
+f.wolfIcon:SetTexture(WOLF_ICON_PATH)
+
+f.wolfCountText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+f.wolfCountText:SetPoint("LEFT", f.wolfIcon, "RIGHT", 8, 0)
+f.wolfCountText:SetText("x0")
 
 -- Dedicated drag button
 f.drag = CreateFrame("Button", nil, f)
@@ -207,25 +244,26 @@ end)
 
 -- 5. Ghost Tracking Logic
 local activeGhosts = {}
+local activeWolves = {}
 local rowPool = {}
+local wolfRowPool = {}
 
-local function CreateNewRow(id)
+local function CreateNewRow(id, duration, r, g, b)
     local row = CreateFrame("Frame", "GT_Row"..id, f)
     row:SetWidth(120) row:SetHeight(14)
-    row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, - (id * 16))
-    
+    row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, 0)
+
     row.bar = CreateFrame("StatusBar", nil, row)
     row.bar:SetAllPoints(row)
     row.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    row.bar:SetStatusBarColor(0.4, 0.1, 0.9, 0.8)
-    row.bar:SetMinMaxValues(0, DURATION)
-    
-    -- Add background
+    row.bar:SetStatusBarColor(r, g, b, 0.8)
+    row.bar:SetMinMaxValues(0, duration)
+
     row.bg = row.bar:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints(row.bar)
     row.bg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
     row.bg:SetVertexColor(0.1, 0.1, 0.1, 0.5)
-    
+
     row.text = row.bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.text:SetPoint("CENTER", 0, 0)
     return row
@@ -237,6 +275,7 @@ f:RegisterEvent("CHAT_MSG_COMBAT_HOSTILE_DEATH")
 f:RegisterEvent("CHAT_MSG_COMBAT_FRIENDLY_DEATH")
 f:RegisterEvent("PLAYER_REGEN_DISABLED")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
+f:RegisterEvent("UNIT_INVENTORY_CHANGED")
 
 
 f:SetScript("OnEvent", function()
@@ -248,14 +287,21 @@ f:SetScript("OnEvent", function()
         scaleValue:SetText(string.format("%.1f", GT_Settings.scale))
         showBarsCheck:SetChecked(GT_Settings.showBars)
         combatOnlyCheck:SetChecked(GT_Settings.showCombatOnly)
+        ScanEquipment()
         UpdateFrameVisibility()
+    elseif event == "UNIT_INVENTORY_CHANGED" then
+        ScanEquipment()
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
         UpdateFrameVisibility()
     elseif arg1 and string.find(arg1, "Summon The Lost") then
         table.insert(activeGhosts, {expiry = GetTime() + DURATION})
+    elseif arg1 and string.find(arg1, "Summon Spirit Protector") then
+        table.insert(activeWolves, {expiry = GetTime() + WOLF_DURATION})
     elseif (event == "CHAT_MSG_COMBAT_HOSTILE_DEATH" or event == "CHAT_MSG_COMBAT_FRIENDLY_DEATH") then
-        if arg1 and string.find(arg1, GHOST_NAME) and table.getn(activeGhosts) > 0 then 
-            table.remove(activeGhosts, 1) 
+        if arg1 and string.find(arg1, GHOST_NAME) and table.getn(activeGhosts) > 0 then
+            table.remove(activeGhosts, 1)
+        elseif arg1 and string.find(arg1, WOLF_NAME) and table.getn(activeWolves) > 0 then
+            table.remove(activeWolves, 1)
         end
     end
 end)
@@ -265,20 +311,60 @@ f:SetScript("OnUpdate", function()
     for i = table.getn(activeGhosts), 1, -1 do
         if now > activeGhosts[i].expiry then table.remove(activeGhosts, i) end
     end
-    f.countText:SetText("x" .. table.getn(activeGhosts))
-    if table.getn(activeGhosts) > table.getn(rowPool) then
-        for i = table.getn(rowPool) + 1, table.getn(activeGhosts) do
-            table.insert(rowPool, CreateNewRow(i))
+    for i = table.getn(activeWolves), 1, -1 do
+        if now > activeWolves[i].expiry then table.remove(activeWolves, i) end
+    end
+
+    local ghostCount = table.getn(activeGhosts)
+    local wolfCount = table.getn(activeWolves)
+
+    if hasGhostSet then
+        f.icon:Show() f.countText:Show()
+        f.countText:SetText("x" .. ghostCount)
+    else
+        f.icon:Hide() f.countText:Hide()
+    end
+    if hasWolfItem then
+        f.wolfIcon:Show() f.wolfCountText:Show()
+        f.wolfCountText:SetText("x" .. wolfCount)
+    else
+        f.wolfIcon:Hide() f.wolfCountText:Hide()
+    end
+
+    if ghostCount > table.getn(rowPool) then
+        for i = table.getn(rowPool) + 1, ghostCount do
+            table.insert(rowPool, CreateNewRow(i, DURATION, 0.4, 0.1, 0.9))
         end
     end
+    if wolfCount > table.getn(wolfRowPool) then
+        for i = table.getn(wolfRowPool) + 1, wolfCount do
+            local offset = table.getn(rowPool) + i
+            table.insert(wolfRowPool, CreateNewRow("w"..i, WOLF_DURATION, 0.9, 0.5, 0.1))
+        end
+    end
+
     for i, row in ipairs(rowPool) do
-        if activeGhosts[i] and GT_Settings.showBars then
+        if activeGhosts[i] and GT_Settings.showBars and hasGhostSet then
             local remain = activeGhosts[i].expiry - now
             row.bar:SetValue(remain)
             row.text:SetText(string.format("%.1fs", remain))
+            row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -(i * 16))
             row:Show()
-        else 
-            row:Hide() 
+        else
+            row:Hide()
+        end
+    end
+
+    local ghostRows = table.getn(rowPool)
+    for i, row in ipairs(wolfRowPool) do
+        if activeWolves[i] and GT_Settings.showBars and hasWolfItem then
+            local remain = activeWolves[i].expiry - now
+            row.bar:SetValue(remain)
+            row.text:SetText(string.format("%.1fs", remain))
+            row:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -((ghostRows + i) * 16))
+            row:Show()
+        else
+            row:Hide()
         end
     end
 end)
