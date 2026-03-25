@@ -1,6 +1,7 @@
 local GHOST_NAME = "The Lost"
 local DURATION = 20
 local ICON_PATH = "Interface\\Icons\\Spell_Shadow_Haunting"
+local BOK_TEXTURE = "Interface\\Icons\\Spell_Magic_MageArmor"
 local WOLF_NAME = "Spirit Protector"
 local WOLF_DURATION = 30
 local WOLF_ICON_PATH = "Interface\\Icons\\Spell_Nature_SpiritWolf"
@@ -15,6 +16,8 @@ local WOLF_ITEM = "Girdle of the Faded Primals"
 
 local hasGhostSet = false
 local hasWolfItem = false
+local activeGhosts = {}
+local activeWolves = {}
 
 local function ScanEquipment()
     local lostCount = 0
@@ -67,6 +70,76 @@ f.wolfCountText = f.wolfIconFrame:CreateFontString(nil, "OVERLAY", "GameFontNorm
 f.wolfCountText:SetPoint("CENTER", f.wolfIconFrame, "CENTER", 0, 0)
 f.wolfCountText:SetTextColor(1, 1, 1, 1)
 f.wolfCountText:SetText("0")
+
+-- Buff button (next to wolf icon)
+f.wolfBokBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+f.wolfBokBtn:SetWidth(16) f.wolfBokBtn:SetHeight(16)
+f.wolfBokBtn:SetPoint("LEFT", f.wolfIconFrame, "RIGHT", 2, 0)
+f.wolfBokBtn:SetText("B")
+f.wolfBokBtn:Hide()
+f.wolfBokBtn:SetScript("OnClick", function()
+    local wolfCount = table.getn(activeWolves)
+    if wolfCount == 0 then return end
+    ClearTarget()
+    for attempt = 1, wolfCount + 1 do
+        TargetNearestFriend()
+        if not UnitExists("target") then break end
+        local hasBok = false
+        local i = 1
+        while true do
+            local tex = UnitBuff("target", i)
+            if not tex then break end
+            if tex == BOK_TEXTURE then hasBok = true break end
+            i = i + 1
+        end
+        if not hasBok then
+            CastSpellByName("Blessing of Kings")
+            return
+        end
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff9900[GhostTracker]|r All wolves already have Kings.", 1, 0.6, 0)
+end)
+f.wolfBokBtn:SetScript("OnEnter", function()
+    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Buff wolf with Blessing of Kings")
+    GameTooltip:Show()
+end)
+f.wolfBokBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+-- Buff button (next to ghost icon)
+f.bokBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+f.bokBtn:SetWidth(16) f.bokBtn:SetHeight(16)
+f.bokBtn:SetPoint("LEFT", f.iconFrame, "RIGHT", 2, 0)
+f.bokBtn:SetText("B")
+f.bokBtn:Hide()
+f.bokBtn:SetScript("OnClick", function()
+    local ghostCount = table.getn(activeGhosts)
+    if ghostCount == 0 then return end
+    ClearTarget()
+    for attempt = 1, ghostCount + 1 do
+        TargetNearestFriend()
+        if not UnitExists("target") then break end
+        local hasBok = false
+        local i = 1
+        while true do
+            local tex = UnitBuff("target", i)
+            if not tex then break end
+            if tex == BOK_TEXTURE then hasBok = true break end
+            i = i + 1
+        end
+        if not hasBok then
+            CastSpellByName("Blessing of Kings")
+            return
+        end
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff9900[GhostTracker]|r All ghosts already have Kings.", 1, 0.6, 0)
+end)
+f.bokBtn:SetScript("OnEnter", function()
+    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Buff ghost with Blessing of Kings")
+    GameTooltip:Show()
+end)
+f.bokBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Dedicated drag button covering both icons
 f.drag = CreateFrame("Button", nil, f)
@@ -261,8 +334,6 @@ btnLock:SetScript("OnClick", function()
 end)
 
 -- 5. Ghost Tracking Logic
-local activeGhosts = {}
-local activeWolves = {}
 local rowPool = {}
 local wolfRowPool = {}
 
@@ -341,14 +412,18 @@ f:SetScript("OnUpdate", function()
     if hasGhostSet then
         f.iconFrame:Show()
         f.countText:SetText(ghostCount)
+        if ghostCount > 0 then f.bokBtn:Show() else f.bokBtn:Hide() end
     else
         f.iconFrame:Hide()
+        f.bokBtn:Hide()
     end
     if hasWolfItem then
         f.wolfIconFrame:Show()
         f.wolfCountText:SetText(wolfCount)
+        if wolfCount > 0 then f.wolfBokBtn:Show() else f.wolfBokBtn:Hide() end
     else
         f.wolfIconFrame:Hide()
+        f.wolfBokBtn:Hide()
     end
 
     if ghostCount > table.getn(rowPool) then
